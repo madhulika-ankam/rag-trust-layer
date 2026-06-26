@@ -1,0 +1,27 @@
+# Core RAG
+langchain
+langchain-community
+langchain-huggingface
+
+# Vector Store
+chromadb
+
+# PDF Loading
+pypdf
+
+# Embeddings and Models
+sentence-transformers
+torch
+
+# NLP Tools
+spacy
+nltk
+
+# Evaluation (used later)
+ragas
+
+# Utilities
+python-dotenv
+pandas
+numpy
+tqdm
