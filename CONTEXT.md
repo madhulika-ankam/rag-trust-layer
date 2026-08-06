@@ -271,7 +271,8 @@ rag-trust-layer/
   - [ ] Module 4: Query Coverage Check (deferred)
   - [x] Module 5: Confidence Scorer (scorer.py) — weighted mean, penalized
         by fraction of UNSUPPORTED/CONTRADICTION claims
-  - [ ] Module 6: Decision Module
+  - [x] Module 6: Decision Module (decision.py) — ESCALATE checked first
+        (overrides score thresholds), then ANSWER/WARN/REFUSE by score
   - [ ] Module 7: Transparency Report Generator
 - [ ] Evaluation framework built
 
