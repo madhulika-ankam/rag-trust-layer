@@ -261,7 +261,7 @@ rag-trust-layer/
 - [x] Virtual environment set up
 - [x] Primary dataset obtained (161 Q&A pairs + 15 knowledge base documents)
 - [ ] Bridgeport Mill manual (pending from Megahed)
-- [ ] Dataset cleaned (special character fix) and labeled with expected_decision
+- [x] Dataset cleaned (special character fix) and labeled with expected_decision
 - [ ] NLI model finalized (base vs large)
 - [ ] Basic RAG pipeline working (loader, chunker, retriever)
 - [ ] Trust layer modules implemented
