@@ -260,11 +260,16 @@ rag-trust-layer/
 - [x] requirements.txt created
 - [x] Virtual environment set up
 - [x] Primary dataset obtained (161 Q&A pairs + 15 knowledge base documents)
-- [ ] Bridgeport Mill manual (pending from Megahed)
+- [ ] Bridgeport Mill manual (pending from Megahed) — NEEDS RECHECK: data/raw
+      already has KneeMill-Complete-Manual.pdf, which may already be this
+      (Bridgeport mills are commonly called "knee mills") — confirm before
+      assuming it's still missing
 - [x] Dataset cleaned (special character fix) and labeled with expected_decision
 - [ ] NLI model finalized (base vs large)
-- [ ] Basic RAG pipeline working (loader, chunker, retriever)
-- [ ] Trust layer modules implemented
+- [x] Basic RAG pipeline working (loader, chunker, retriever) — verified live,
+      retrieve() returns correct relevant chunks from the persisted Chroma
+      index. NOT the same as a full RAG pipeline — see gaps below.
+- [x] Trust layer modules implemented (core: Modules 1, 3, 5, 6, 7)
   - [x] Module 1: Claim Decomposer (decomposer.py)
   - [ ] Module 2: Retrieval Coverage Check
   - [x] Module 3: Multi-Mechanism Verifier (verifier.py)
@@ -276,6 +281,44 @@ rag-trust-layer/
   - [x] Module 7: Transparency Report Generator (reporter.py) — trust score,
         per-claim citation trail, natural-language explanation
 - [ ] Evaluation framework built
+
+---
+
+## Next Steps (as of 2026-08-06)
+
+The core Trust Layer (decompose → verify → score → decide → report) is
+fully implemented and tested (39/39 tests passing) and has been run
+end-to-end against fixture data, producing correct results. It has NOT yet
+been run against real RAG output — see gap #1 below, which blocks that.
+
+In priority order:
+
+1. **Build the LLM answer-generation step.** This is the biggest gap. The
+   RAG pipeline (`src/rag/`) only retrieves chunks — nothing generates an
+   answer from them. Per the tech stack, this should be a local Llama 3 or
+   Mistral model. Without this, there's no real "generated answer" to run
+   the Trust Layer against; everything tested so far has used hand-written
+   fixture answers, not actual RAG output.
+2. **Wire RAG output into the Trust Layer.** Nothing currently calls
+   `decompose()` → `verify()` → `score()` → `decide()` → `generate_report()`
+   on real retrieved chunks + a real generated answer. Once step 1 exists,
+   add this glue (likely in `src/main.py` or a new orchestration entry
+   point).
+3. **Rebuild the Chroma index.** Found a staleness bug: the persisted index
+   at `data/chroma` has metadata citing
+   `29 CFR 1910.147 (up to date as of 4-30-2026).pdf`, but the current file
+   in `data/raw` is dated `7-23-2025` — the index was built from an
+   older/differently-named snapshot. Citations in the transparency report
+   would point to a filename that no longer exists until this is rebuilt.
+4. **Confirm Bridgeport Mill manual status.** `KneeMill-Complete-Manual.pdf`
+   is already in `data/raw` — check whether this is the manual that was
+   "pending from Megahed" before treating it as still missing.
+5. Module 2 (Retrieval Coverage Check) — not yet built.
+6. NLI model finalized (base vs. large) — still open, tradeoff not decided.
+7. Minor: `src/rag/retriever.py` imports the deprecated
+   `langchain_community.vectorstores.Chroma`; migrate to `langchain_chroma`
+   at some point (not urgent).
+8. Evaluation framework (RAGAS-based) — not yet built.
 
 ---
 
