@@ -265,6 +265,14 @@ rag-trust-layer/
 - [ ] NLI model finalized (base vs large)
 - [ ] Basic RAG pipeline working (loader, chunker, retriever)
 - [ ] Trust layer modules implemented
+  - [x] Module 1: Claim Decomposer (decomposer.py)
+  - [ ] Module 2: Retrieval Coverage Check
+  - [x] Module 3: Multi-Mechanism Verifier (verifier.py)
+  - [ ] Module 4: Query Coverage Check (deferred)
+  - [x] Module 5: Confidence Scorer (scorer.py) — weighted mean, penalized
+        by fraction of UNSUPPORTED/CONTRADICTION claims
+  - [ ] Module 6: Decision Module
+  - [ ] Module 7: Transparency Report Generator
 - [ ] Evaluation framework built
 
 ---
