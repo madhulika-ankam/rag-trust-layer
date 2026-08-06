@@ -273,7 +273,8 @@ rag-trust-layer/
         by fraction of UNSUPPORTED/CONTRADICTION claims
   - [x] Module 6: Decision Module (decision.py) — ESCALATE checked first
         (overrides score thresholds), then ANSWER/WARN/REFUSE by score
-  - [ ] Module 7: Transparency Report Generator
+  - [x] Module 7: Transparency Report Generator (reporter.py) — trust score,
+        per-claim citation trail, natural-language explanation
 - [ ] Evaluation framework built
 
 ---
