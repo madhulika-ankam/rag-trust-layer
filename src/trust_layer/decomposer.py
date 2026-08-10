@@ -23,9 +23,10 @@ def _get_nlp():
     return _nlp
 
 
-# Matches numbered list items: "1.", "2.", "(1)", "(a)", "-", "•"
+# Matches numbered list items: "1.", "2.", "(1)", "(a)", "-", "•", "+"
+# Captures leading indentation so nested (sub-)items can be detected.
 _LIST_ITEM_RE = re.compile(
-    r"^\s*(?:\d+[\.\)]\s*|[a-zA-Z][\.\)]\s*|[-•*]\s+)", re.MULTILINE
+    r"^(?P<indent>[ \t]*)(?:\d+[\.\)]\s*|[a-zA-Z][\.\)]\s*|[-•*+]\s+)", re.MULTILINE
 )
 
 # Conjunctions that may join two independent clauses worth splitting
@@ -37,21 +38,64 @@ _MIN_CLAIM_WORDS = 4
 
 def _split_list_items(text: str) -> list[str] | None:
     """
-    If the text looks like a numbered/bulleted list, return items as strings.
-    Returns None if the text is not list-formatted.
+    If the text looks like a numbered/bulleted list, return items as claim
+    strings. Returns None if the text is not list-formatted.
     """
     matches = list(_LIST_ITEM_RE.finditer(text))
     if len(matches) < 2:
         return None
 
-    items = []
+    raw_items = []
     for i, match in enumerate(matches):
         start = match.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-        item = text[start:end].strip()
-        if item:
-            items.append(item)
-    return items if items else None
+        item_text = text[start:end].strip()
+        if item_text:
+            raw_items.append((len(match.group("indent")), item_text))
+
+    return _merge_nested_items(raw_items) if raw_items else None
+
+
+def _merge_parent_child(parent_text: str, child_text: str) -> str:
+    """
+    Join a parent list item's text with a nested child item's text so the
+    child reads as a complete claim instead of a fragment, e.g. parent
+    "Lockout devices shall be:" + child "Singularly identified" ->
+    "Lockout devices shall be singularly identified".
+    """
+    parent_text = parent_text.rstrip().rstrip(":").strip()
+    child_text = child_text.strip()
+    if child_text and child_text[0].isupper() and not parent_text.endswith((".", "!", "?")):
+        child_text = child_text[0].lower() + child_text[1:]
+    return f"{parent_text} {child_text}"
+
+
+def _merge_nested_items(raw_items: list[tuple[int, str]]) -> list[str]:
+    """
+    Merge indented sub-items with their nearest less-indented ancestor's
+    text. An item whose text ends in ':' is treated as a header for its
+    children (e.g. "X shall be:") and is not itself emitted as a claim —
+    only its merged children are, since the header alone is an incomplete
+    fragment.
+    """
+    items = []
+    stack: list[tuple[int, str]] = []  # (indent, text used as ancestor context)
+
+    for indent, text in raw_items:
+        while stack and stack[-1][0] >= indent:
+            stack.pop()
+
+        parent_text = stack[-1][1] if stack else None
+        claim_text = _merge_parent_child(parent_text, text) if parent_text else text
+
+        is_header = text.rstrip().endswith(":")
+        if not is_header:
+            items.append(claim_text)
+
+        ancestor_text = claim_text.rstrip().rstrip(":").strip() if is_header else claim_text
+        stack.append((indent, ancestor_text))
+
+    return items
 
 
 def _split_conjunctions(sentence: str) -> list[str]:

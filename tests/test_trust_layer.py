@@ -98,3 +98,44 @@ def test_regulatory_code_not_split_on_dot():
     claims = decompose(answer)
     assert len(claims) == 1
     assert "1910.147" in claims[0]
+
+
+def test_plus_bullets_are_recognized_as_list_items():
+    # LLM-generated markdown commonly uses "+" for a nested bullet level;
+    # the original regex only recognized "-", "*", "•" and missed these.
+    answer = "* Required PPE:\n\t+ Safety glasses\n\t+ Steel-toed boots\n\t+ Hearing protection"
+    claims = decompose(answer)
+    assert len(claims) == 3
+
+
+def test_nested_bullet_children_inherit_parent_context():
+    # A child bullet like "Not used for other purposes" is a fragment on its
+    # own — NLI can't verify it as a standalone claim. It must be merged with
+    # its parent line so it reads as a complete, checkable sentence.
+    answer = (
+        "* Lockout devices and tagout devices shall be:\n"
+        "\t+ Singularly identified\n"
+        "\t+ Not used for other purposes"
+    )
+    claims = decompose(answer)
+    assert len(claims) == 2
+    assert all("Lockout devices and tagout devices shall be" in c for c in claims)
+    assert any("singularly identified" in c for c in claims)
+    assert any("not used for other purposes" in c for c in claims)
+    # the header itself, ending in ":", should not be emitted as its own claim
+    assert not any(c.strip().endswith(":") for c in claims)
+
+
+def test_flat_list_unaffected_by_nesting_logic():
+    # Sanity check: a plain, non-nested numbered list should behave exactly
+    # as before the nested-merge change.
+    answer = (
+        "1. Wear safety glasses at all times.\n"
+        "2. Lock out the machine before maintenance.\n"
+        "3. Verify the zero energy state before proceeding."
+    )
+    claims = decompose(answer)
+    assert len(claims) == 3
+    assert claims[0] == "Wear safety glasses at all times."
+    assert claims[1] == "Lock out the machine before maintenance."
+    assert claims[2] == "Verify the zero energy state before proceeding."
