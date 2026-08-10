@@ -1,3 +1,6 @@
+import shutil
+import os
+
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 
@@ -6,6 +9,16 @@ CHROMA_DIR = "data/chroma"
 
 
 def build_vectorstore(chunks: list) -> Chroma:
+    """
+    Build a fresh Chroma index from `chunks`, replacing any existing index
+    at CHROMA_DIR. Chroma.from_documents() appends to an existing persisted
+    collection rather than replacing it, so the old directory is removed
+    first — otherwise re-running this after removing/renaming source PDFs
+    leaves stale, orphaned chunks permanently mixed in with the new ones.
+    """
+    if os.path.exists(CHROMA_DIR):
+        shutil.rmtree(CHROMA_DIR)
+
     embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
     vectorstore = Chroma.from_documents(
         documents=chunks,
