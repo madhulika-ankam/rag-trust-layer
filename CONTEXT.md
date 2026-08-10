@@ -266,9 +266,13 @@ rag-trust-layer/
       assuming it's still missing
 - [x] Dataset cleaned (special character fix) and labeled with expected_decision
 - [ ] NLI model finalized (base vs large)
-- [x] Basic RAG pipeline working (loader, chunker, retriever) — verified live,
-      retrieve() returns correct relevant chunks from the persisted Chroma
-      index. NOT the same as a full RAG pipeline — see gaps below.
+- [x] Basic RAG pipeline working (loader, chunker, retriever) — verified live
+      against a freshly rebuilt, clean Chroma index (17/17 current data/raw
+      PDFs, no stale/orphaned entries)
+- [x] LLM answer generation (generator.py) — llama3 via local Ollama,
+      constrained to context-only answers
+- [x] Full pipeline wired end-to-end (`run_pipeline()` in main.py):
+      retrieve -> generate -> decompose -> verify -> score -> decide -> report
 - [x] Trust layer modules implemented (core: Modules 1, 3, 5, 6, 7)
   - [x] Module 1: Claim Decomposer (decomposer.py)
   - [ ] Module 2: Retrieval Coverage Check
@@ -284,41 +288,32 @@ rag-trust-layer/
 
 ---
 
-## Next Steps (as of 2026-08-06)
+## Next Steps (as of 2026-08-07)
 
-The core Trust Layer (decompose → verify → score → decide → report) is
-fully implemented and tested (39/39 tests passing) and has been run
-end-to-end against fixture data, producing correct results. It has NOT yet
-been run against real RAG output — see gap #1 below, which blocks that.
+The full pipeline is now wired end-to-end and has been run against the real
+knowledge base (not just fixtures): retrieve -> generate (llama3 via
+Ollama) -> decompose -> verify -> score -> decide -> report. 45/45 tests
+passing. See `docs/2026-08-07-errors-and-fixes.md` for a detailed writeup
+of every bug found and fixed today via this end-to-end testing.
 
 In priority order:
 
-1. **Build the LLM answer-generation step.** This is the biggest gap. The
-   RAG pipeline (`src/rag/`) only retrieves chunks — nothing generates an
-   answer from them. Per the tech stack, this should be a local Llama 3 or
-   Mistral model. Without this, there's no real "generated answer" to run
-   the Trust Layer against; everything tested so far has used hand-written
-   fixture answers, not actual RAG output.
-2. **Wire RAG output into the Trust Layer.** Nothing currently calls
-   `decompose()` → `verify()` → `score()` → `decide()` → `generate_report()`
-   on real retrieved chunks + a real generated answer. Once step 1 exists,
-   add this glue (likely in `src/main.py` or a new orchestration entry
-   point).
-3. **Rebuild the Chroma index.** Found a staleness bug: the persisted index
-   at `data/chroma` has metadata citing
-   `29 CFR 1910.147 (up to date as of 4-30-2026).pdf`, but the current file
-   in `data/raw` is dated `7-23-2025` — the index was built from an
-   older/differently-named snapshot. Citations in the transparency report
-   would point to a filename that no longer exists until this is rebuilt.
-4. **Confirm Bridgeport Mill manual status.** `KneeMill-Complete-Manual.pdf`
-   is already in `data/raw` — check whether this is the manual that was
-   "pending from Megahed" before treating it as still missing.
-5. Module 2 (Retrieval Coverage Check) — not yet built.
-6. NLI model finalized (base vs. large) — still open, tradeoff not decided.
-7. Minor: `src/rag/retriever.py` imports the deprecated
+1. **Confirm Bridgeport Mill manual status.** `KneeMill-Complete-Manual.pdf`
+   is in `data/raw` and now in the rebuilt index — check whether this is the
+   manual that was "pending from Megahed" before treating it as still
+   missing; real queries about it are now returning grounded content.
+2. Module 2 (Retrieval Coverage Check) — not yet built.
+3. NLI model finalized (base vs. large) — still open, tradeoff not decided.
+4. **Evaluate retrieval quality more broadly.** One real gold question
+   (Bridgeport quill hand-feed mode) got a REFUSE because the generated
+   answer partially didn't match the specific procedure the gold answer
+   describes — worth running more of the 161 gold questions through
+   `run_pipeline()` to see how often retrieval finds the right passage
+   vs. a plausible-but-different one.
+5. Minor: `src/rag/retriever.py` imports the deprecated
    `langchain_community.vectorstores.Chroma`; migrate to `langchain_chroma`
    at some point (not urgent).
-8. Evaluation framework (RAGAS-based) — not yet built.
+6. Evaluation framework (RAGAS-based) — not yet built.
 
 ---
 
