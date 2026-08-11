@@ -288,32 +288,63 @@ rag-trust-layer/
 
 ---
 
-## Next Steps (as of 2026-08-07)
+## Next Steps (as of 2026-08-10)
 
-The full pipeline is now wired end-to-end and has been run against the real
+The full pipeline is wired end-to-end and has been run against the real
 knowledge base (not just fixtures): retrieve -> generate (llama3 via
 Ollama) -> decompose -> verify -> score -> decide -> report. 45/45 tests
-passing. See `docs/2026-08-07-errors-and-fixes.md` for a detailed writeup
-of every bug found and fixed today via this end-to-end testing.
+passing. See `docs/2026-08-07-errors-and-fixes.md` for the detailed writeup
+of every bug found and fixed via end-to-end testing.
 
-In priority order:
+### Natural-hallucination evaluation batch (2026-08-08)
 
-1. **Confirm Bridgeport Mill manual status.** `KneeMill-Complete-Manual.pdf`
-   is in `data/raw` and now in the rebuilt index — check whether this is the
-   manual that was "pending from Megahed" before treating it as still
-   missing; real queries about it are now returning grounded content.
-2. Module 2 (Retrieval Coverage Check) — not yet built.
-3. NLI model finalized (base vs. large) — still open, tradeoff not decided.
-4. **Evaluate retrieval quality more broadly.** One real gold question
-   (Bridgeport quill hand-feed mode) got a REFUSE because the generated
-   answer partially didn't match the specific procedure the gold answer
-   describes — worth running more of the 161 gold questions through
-   `run_pipeline()` to see how often retrieval finds the right passage
-   vs. a plausible-but-different one.
-5. Minor: `src/rag/retriever.py` imports the deprecated
+Ran 10 questions sampled evenly across the 161-question gold set (every
+16th row) through the full pipeline, no adversarial prompting. Result:
+**0 ANSWER, 1 WARN, 8 REFUSE, 1 ESCALATE** — dataset expected ANSWER for 9
+of these and ESCALATE for 1. Full stage-by-stage breakdown (gold answer vs.
+LLM answer vs. every claim's verdict/score/citation vs. trust arithmetic)
+published at: https://claude.ai/code/artifact/893447a6-fe4d-4a29-846b-fa20a5f7b47f
+
+Three open hypotheses for why REFUSE dominated so heavily:
+1. **Scorer formula is structurally harsh at low claim counts** (strongest
+   evidence so far) — most answers decomposed into only 2-4 claims, and
+   `mean × (1 − bad_fraction)` means one weak claim among 2 caps the score
+   near/below 0.5 almost regardless of the other claim's strength.
+2. **NLI may under-score claims that are actually well-grounded** — one
+   case (Q64) had the LLM quote the source almost verbatim, still scored
+   UNSUPPORTED; possibly hurt by a PDF-extraction artifact (words run
+   together, no spaces) in that particular chunk.
+3. **Some fraction is genuine, correct hallucination-catching** — at least
+   one case (Q48) is unambiguous: the LLM said "not explicitly defined...
+   we can infer" then stated 4 specifics anyway, all correctly flagged.
+
+**User's plan:** manually review each of the 10 cases in the artifact and
+give a per-question judgment on "what went wrong" — this ground-truth pass
+determines which hypothesis above actually dominates before touching the
+scorer formula, the NLI model choice, or accepting the local model's
+answers really are this imprecise. Pick this up first next session.
+
+### In priority order
+
+1. Work through the user's per-question annotations for the 10-case batch
+   above once given.
+2. **Fix the "declined answer" bug (found in the same batch, Q80):** when
+   the LLM honestly says "there is no information about X in the context,"
+   the decomposer treats that decline as a factual claim, and the verifier
+   scores it as CONTRADICTION against retrieved evidence — turning an
+   honest "I don't know" into a false ESCALATE. Needs decompose()/verify()
+   (or a wrapper around them) to recognize a refusal-to-answer as a
+   distinct case, not run it through claim verification.
+3. **Confirm Bridgeport Mill manual status.** `KneeMill-Complete-Manual.pdf`
+   is in `data/raw` and in the rebuilt index — check whether this is the
+   manual that was "pending from Megahed."
+4. Module 2 (Retrieval Coverage Check) — not yet built.
+5. NLI model finalized (base vs. large) — the batch above is now directly
+   relevant evidence for this decision.
+6. Minor: `src/rag/retriever.py` imports the deprecated
    `langchain_community.vectorstores.Chroma`; migrate to `langchain_chroma`
    at some point (not urgent).
-6. Evaluation framework (RAGAS-based) — not yet built.
+7. Evaluation framework (RAGAS-based) — not yet built.
 
 ---
 
