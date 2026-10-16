@@ -1,0 +1,33 @@
+﻿id,question_id,original,normalised,rule
+1,100,Only connect your robot to a trusted and properly secured network.,The robot must only be connected to a trusted and properly secured network.,R3
+2,100,Only trusted devices are to be connected to the local network.,Only trusted devices are to be connected to the local network.,none
+3,100,There must be no inbound connections from adjacent networks to the robot.,There must be no inbound connections from adjacent networks to the robot.,none
+4,100,"Outgoing connections from the robot are to be restricted to allow only the smallest relevant set of specific ports, protocols, and addresses.","Outgoing connections from the robot are to be restricted to the smallest relevant set of specific ports, protocols, and addresses.",none
+5,100,"Only UR Caps and magic scripts from trusted partners can be used, and only after verifying their authenticity and integrity.","Only UR Caps and scripts from trusted partners may be used, after their authenticity and integrity have been verified.",none
+6,3,"According to the context, the latency of messages sent via tool connectors ranges from 2ms to 4ms, from the time the message is written on the PC to the start of the message on the RS485.","The latency of messages sent via tool connectors ranges from 2ms to 4ms, from the time the message is written on the PC to the start of the message on the RS485.",R1
+7,144,"According to the manual, yes, you will need to download and install VNC Viewer software on your laptop in order to access the remote display view of your Haas machine.",VNC Viewer software must be installed on the laptop in order to access the remote display view of the Haas machine.,R1+R2+R3
+8,144,"This is mentioned in step 8 of the ""Remote Display Tab"" section (p.443).",(DROPPED),R4 DROP
+9,56,Approved industrial safety glasses (Source: KneeMill-Complete-Manual.pdf p.2),Approved industrial safety glasses must be worn.,R5+R6
+10,56,"Gloves (Source: KneeMill-Complete-Manual.pdf p.4, Source: KneeMill-Complete-Manual.pdf p.6)",Gloves must be worn.,R5+R6
+11,56,Long hair (should be worn under a cap or contained to prevent entanglement in moving machinery),Long hair must be worn under a cap or contained to prevent entanglement in moving machinery.,R6
+12,139,"According to the context, it is explicitly stated on page 30 of the User Manual: ""Very strong magnetic fields can damage the robot.",Very strong magnetic fields can damage the robot.,R1+R6
+13,139,Don't expose the robot to permanent magnetic fields.,The robot must not be exposed to permanent magnetic fields.,R3
+14,139,""" So, yes, you do need to worry about a strong electromagnet near your robot.",A strong electromagnet near the robot can damage it.,R2+R6
+15,73,Press [LIST PROGRAMS] and select a storage device.,[LIST PROGRAMS] must be pressed and a storage device selected.,R3
+16,73,Press [F3]. This will allow you to access the special symbols list.,Pressing [F3] gives access to the special symbols list.,R3
+17,114,**Stop Category 0**: Stop the robot by immediate removal of power.,Stop Category 0 stops the robot by immediate removal of power.,R3+R6
+18,114,"**Stop Category 1**: Stop the robot in an orderly, controlled manner. Power is removed once the robot is stopped.","Stop Category 1 stops the robot in an orderly, controlled manner, and power is removed once the robot is stopped.",R3+R6
+19,114,**Robot Emergency Stop**: For emergency stop equipment only,Robot Emergency Stop is for emergency stop equipment only.,R6
+20,114,**Safeguard Stop**: For protected devices,Safeguard Stop is for protected devices.,R6
+21,114,"**3PE Stop**: For protected devices These emergency stops have different functional differences, as shown in the table provided.",3PE Stop is for protected devices.,R6
+22,136,"According to the information in the KneeMill-Complete-Manual.pdf, the spindle taper of the Bridgeport Series I milling machine is R8 (p.93).",The spindle taper of the Bridgeport Series I milling machine is R8.,R1+R5
+23,136,"Therefore, yes, the Bridgeport takes R8 collets.",The Bridgeport takes R8 collets.,R2
+24,23,Loose items that could become caught in moving parts. These are explicitly listed as things not to wear when using the bridgeport mill.,Loose items that could become caught in moving parts must not be worn when using the Bridgeport mill.,R6
+25,98,Low range: 60 - 500 rpm @ 60Hz,The low speed range is 60 to 500 rpm at 60Hz.,R6
+26,98,High range: Infinitely variable (500 - 4200 rpm) @ 60Hz,The high speed range is infinitely variable from 500 to 4200 rpm at 60Hz.,R6
+27,93,"According to the context, the first thing you should suspect as the reason for a slow turret index time and difficulty unclamping is ""Low air pressure or insufficient air volume"" (Source: p.127).",The first thing to suspect for a slow turret index time and difficulty unclamping is low air pressure or insufficient air volume.,R1+R5
+28,93,"This is mentioned in the section on Tool Turret Operations, specifically in 4.10.1 Air Pressure.",(DROPPED),R4 DROP
+29,142,"According to page 395 of the operator's manual, the ""Dimensioning"" setting (9) allows you to switch between inch and metric mode.","The ""Dimensioning"" setting (9) allows switching between inch and metric mode.",R1
+30,142,"When set to MM, programmed units are millimeters, to 0.001 mm.","When set to MM, programmed units are millimetres, to 0.001 mm.",none
+31,142,"So, yes, the HAAS Lathe can reflect measurements in MM instead of Inches by changing this setting from INCH to MM.",The HAAS Lathe can report measurements in MM instead of inches by changing this setting from INCH to MM.,R2
+32,25,"According to the provided context, the standard that defines the performance levels of UR safety functions is ISO 13849-1:2015.",The standard that defines the performance levels of UR safety functions is ISO 13849-1:2015.,R1

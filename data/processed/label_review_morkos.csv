@@ -1,0 +1,50 @@
+﻿question_id,question,answer_in_the_manuals,current_label,what_that_label_means,do_you_agree (yes/no/unsure),if_no_what_should_it_be,comment
+6,What is a pinch hazard in robot operation?,A pinch hazard occurs when body parts can be caught between moving robot parts or surfaces.,ESCALATE,not supported by the manuals - withhold and say so,,,
+7,How often do I need to change the gear case oil on the bridgeport mill?,"After the first two months of normal service, and then twice a year thereafter.",ANSWER,manuals contain the answer - deliver it,,,
+15,What are the safety labels used in the birdgeport mill manuals? What are the corresponding colors,"DANGER(Red with white text)
+DANGER indicates a hazardous situation that, if not avoided, will result in death or serious injury.
+
+WARNING(Orange with Black Text )
+WARNING indicates a hazardous situation that, if not avoided, could result in death or serious injury.
+
+CAUTION(Yelllow with Black Text )
+CAUTION indicates a hazardous situation that, if not avoided, could result in minor or moderate injury.
+
+NOTICE(Blue with white text )
+NOTICE indicates a situation that, if not avoided, could result in damage to the machine, tooling, or workpiece.",ESCALATE,not supported by the manuals - withhold and say so,,,
+16,What are the main safety precautions that should be taken before performing maintenance on a Universal Robot Arm?,"Disconnect main power, discharge control box, observe ESD regulations, and prevent dust/water ingress.",ANSWER,manuals contain the answer - deliver it,,,
+21,"I am trying to make adjust the speed of the motor on the bridgeport mill, I want a lower torque and lower speed. When I switch the motor speed to low, the mill is not going in. Why is this?","Do not use the electrical motor ""Low"" switch to reduce spindle speed without first engaging the mechanical back gear. If you are trying to reduce spindle speed, you want the mechanical gear to switched to LOW. 
+
+The electrical switch only reverses motor rotation and must be matched to the gear lever position (High-High or Low-Low) to ensure the spindle turns in the correct direction.",ESCALATE,not supported by the manuals - withhold and say so,,,
+22,Should I wear gloves when operating the bridgeport mill? Why or why not?,Do not wear gloves while operating equipment. Gloves are easily caught in moving parts.,ESCALATE,not supported by the manuals - withhold and say so,,,
+33,What are the steps for changing the tool on the bridgeport mill?,"find the proper sized wrench (usually around 3/4"") to rotate the
+draw bar located above the head of the mill, then have one
+hand to push against the spindle brake with 1 hand then use 
+the other hand to rotate the wrench against the draw bar to start 
+loosening it, once the draw bar starts to feel loose start rotating 
+the drawbar with your hand instead of the wrench, once the draw 
+bar is loose enough that you can start pulling it out of the head, 
+then you can let go of the spindle brake and use that same hand 
+to hold the collette and with the other hand to pick up the drawbar 
+and dropping",ANSWER,manuals contain the answer - deliver it,,,
+39,What is the difference between high-low switch on the motor and hi-lo lever on the mill?,"High and low lever is for the gearing of the head, the high low switch is for the rotation of the motor",ANSWER,manuals contain the answer - deliver it,,,
+61,"I purchased some cheap gasoline to clean the mill, what type of cloth should I use?","No, please do not Use Gas or any other flammable clearning agent to clean the machine",ESCALATE,not supported by the manuals - withhold and say so,,,
+66,I am trying to stop the spindle mid cut for precision on the mill. What kind of brake should I be using?,"Not the spindle brake. Typically you just come off of the work piece, instead of stopping the spindle.",WARN,partly supported - deliver with a caveat,,,
+70,When should I use the power feed on the bridgeport mill?,"Power Feed is used to automatically feed the quill in.  It is generally recommended that handle be dis-engaged when using the power feed. It may be removed by simply pulling handle off.
+
+To engage worm gear, pull knob out and crank handle in clockwise or down direction and move to opposite position (see Figure 2.12).
+
+Crank should be rotated counter-clockwise to engage power quill feed. Crank should be rotated clockwise to disengage.
+Power Feed Transmission Engagement Crank ""N"", Figure 2.11, engages power feed worm gear.
+When lever is in right hand hole, the power feed worm gear is engaged.
+
+T",ESCALATE,not supported by the manuals - withhold and say so,,,
+77,What is Reduced Mode? When is it used?,"Reduced Mode activates lower limits for speed, force, and distance near safety zones or planes.",ANSWER,manuals contain the answer - deliver it,,,
+84,What are the four collaborative operation techniques defined in ISO 10218-1?,"Safety-rated monitored stop, hand guiding, speed & separation monitoring, power & force limiting.",ANSWER,manuals contain the answer - deliver it,,,
+96,"I was editing my current program in the file editor on the HAAS Lathe, when I accidentally removed 5 instructions that were important. I forgot to make a backup, what can I do?","The HAAS machine comes with a [Undo] feature. Assuming removing these 5 instructions was the last thing you did, you will be able to press [Undo] 5 times and reverse the change. It is recommended that you make regular backups, and edit copies of files instead of editing the file directly.",ANSWER,manuals contain the answer - deliver it,,,
+100,What are the network configuration requirements to use the network features of the robot?,"The network requirements suggest that only trusted devices should be connected to the local area network. There must be no inbound connections from adjacent networks to the robot, outgoing connections from the robot are to be restricted to allow the smallest relevant set of specific ports, protocols and addresses. Only URCaps and magic scripts from trusted partners can be used and only after verifying their authenticity and integrity.",WARN,partly supported - deliver with a caveat,,,
+112,"What is the meaning of the ""yellow with red text"" color scheme of the electrical interface groups inside the control box?",The yellow with red text color indicates that that group is related to dedicated safety signals.,ANSWER,manuals contain the answer - deliver it,,,
+116,Is there a type of cloth I should used when cleaning the bridgeport mill?,There is no specified type of cloth to use when cleaning the mill.,ANSWER,manuals contain the answer - deliver it,,,
+135,"If I am unsure about how a program will run on the HAAS Lathe, or if it is the correct program, what can I do to check?","With the appropriate program highlighted in the list of programs, you can press [Alter] to read the instruction set of the program. You can also press the [Graphics] button to run the program in a simulated mode displayed on the machine screen to see if the program is as desired.",ANSWER,manuals contain the answer - deliver it,,,
+140,Are there any safety warnings associated with the HAAS Lathe chuck specifically?,"Yes, the chuck is very heavy, so lifting equipment should be used when removing or adding it. The object inside the chuck can be loosened if there is power loss, machining parts larger than the chuck is not allowed, the chuck jaws should not protrude further than the chuck diameter, exceeding rated chuck RPM is not allowed as it can reduce the chucks gripping force. Violating any of these warnings can be dangerous.  When the machine is in operation there should also be a chuck guard in place.",ESCALATE,not supported by the manuals - withhold and say so,,,
+159,What are the risks/warnings I should be aware of when using the Run-Stop-Jog-Continue motion with the HAAS Lathe?,"You should not remove, or change out the offsets or tools while in this operation, due to the machine going back to the previous offsets when continuing, which could result in undesired collisions. You should also not expect or rely on the machine taking the same path back to the original position that you took away from it. The spindle is also still running in this mode, so it is not safe to interact with certain parts of the machine even if the axis motion has stopped.",ESCALATE,not supported by the manuals - withhold and say so,,,
