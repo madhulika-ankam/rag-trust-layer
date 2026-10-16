@@ -9,8 +9,8 @@ from Module 5.
               claim is dangerous regardless of how well everything else
               scored)
   ANSWER    → score >= 0.85, fully supported
-  WARN      → 0.60 <= score < 0.85, partially supported
-  REFUSE    → score < 0.60, insufficient support (also applies when there
+  WARN      → 0.30 <= score < 0.85, partially supported
+  REFUSE    → score < 0.30, insufficient support (also applies when there
               were no claims to verify at all)
 """
 from dataclasses import dataclass
@@ -18,7 +18,23 @@ from dataclasses import dataclass
 from src.trust_layer.scorer import TrustScore
 
 ANSWER_THRESHOLD = 0.85
-WARN_THRESHOLD = 0.60
+
+# 0.60 was carried over from the "current" aggregator, where the score was
+# mean(claim scores) x (1 - bad fraction). Module 5 now aggregates with
+# "min", so the score means "every claim scored at least this" — a different
+# quantity on a different scale, and the old number does not transfer.
+#
+# Swept from 0.05 to 0.95 against the 30 labelled answers under the plan's
+# constraint (>=3 of 4 fabrication answers withheld, <=1 of 7 off-target
+# delivered). 0.25, 0.30 and 0.35 all give the same result — 6 of 13
+# fully-good answers delivered — so this is the centre of the stable region
+# rather than an edge of it.
+#
+# THIS IS SELECTED ON 30 ANSWERS, which is small enough that the difference
+# between it and the old setting is a single question. It needs revisiting
+# once Dr. Morkos has validated more labels; src/calibrate.py derives it
+# from a stated risk tolerance instead.
+WARN_THRESHOLD = 0.30
 
 
 @dataclass

@@ -37,9 +37,23 @@ def test_all_supported_claims_score_high():
     trust = score(results)
 
     assert trust.penalty_factor == 1.0
-    assert trust.overall_score == trust.mean_claim_score
+    # "min" — an answer is worth its weakest claim
+    assert trust.overall_score == 0.88
     assert trust.has_contradiction is False
     assert trust.num_supported == 3
+
+
+def test_a_single_claim_answer_keeps_its_score():
+    # The zero-collapse this aggregator was changed to fix: mean x (1 - bad
+    # fraction) returns EXACTLY 0.000 when an answer's one claim is flagged,
+    # and "proportion" is equally binary. 23 of the 161 benchmark answers
+    # have exactly one claim, so for those the score carried no information
+    # at all.
+    one = [_result("UNSUPPORTED", 0.42)]
+
+    assert score(one, aggregator="current").overall_score == 0.0
+    assert score(one, aggregator="proportion").overall_score == 0.0
+    assert score(one).overall_score == 0.42
 
 
 def test_one_contradiction_among_strong_claims_pulls_score_down():
@@ -56,7 +70,11 @@ def test_one_contradiction_among_strong_claims_pulls_score_down():
     assert trust.mean_claim_score == round((0.95 + 0.90 + 0.10) / 3, 4)
     assert trust.penalty_factor == round(1 - (1 / 3), 4)
     assert trust.overall_score < trust.mean_claim_score
-    assert 0.40 <= trust.overall_score <= 0.45
+    # Under "min" the contradicted claim decides outright, which is stricter
+    # than the 0.43 the original rule produced. The old rule is still
+    # selectable and still behaves as it did.
+    assert trust.overall_score == 0.10
+    assert 0.40 <= score(results, aggregator="current").overall_score <= 0.45
     assert trust.has_contradiction is True
 
 

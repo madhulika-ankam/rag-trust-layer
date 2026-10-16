@@ -39,10 +39,28 @@ def _get_embed_model() -> SentenceTransformer:
     return _embed_model
 
 
+def set_nli_model(name: str) -> None:
+    """Swap the NLI checkpoint. Resets the cached model so the next call
+    loads the new one. Label order is read from the model's own config
+    rather than assumed — different checkpoints order them differently
+    (roberta-large-mnli is contradiction/neutral/entailment)."""
+    global _nli_model, NLI_MODEL_NAME
+    if name != NLI_MODEL_NAME:
+        NLI_MODEL_NAME = name
+        _nli_model = None
+
+
 def _get_nli_model() -> CrossEncoder:
-    global _nli_model
+    global _nli_model, _NLI_CONTRADICTION, _NLI_ENTAILMENT, _NLI_NEUTRAL
     if _nli_model is None:
         _nli_model = CrossEncoder(NLI_MODEL_NAME)
+        cfg = getattr(_nli_model.model, "config", None)
+        id2label = getattr(cfg, "id2label", None) or {}
+        lookup = {str(v).lower(): int(k) for k, v in id2label.items()}
+        if {"contradiction", "entailment", "neutral"} <= set(lookup):
+            _NLI_CONTRADICTION = lookup["contradiction"]
+            _NLI_ENTAILMENT = lookup["entailment"]
+            _NLI_NEUTRAL = lookup["neutral"]
     return _nli_model
 
 
@@ -64,6 +82,9 @@ class VerificationResult:
     best_chunk: str     # text of the most relevant retrieved chunk
     best_chunk_source: str  # source file + page from chunk metadata
     mechanisms: list[MechanismResult] = field(default_factory=list)
+    # Raw [contradiction, entailment, neutral] from the winning chunk, kept so
+    # downstream analysis can compare scoring rules without re-running NLI.
+    nli_probs: list[float] = field(default_factory=list)
 
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
@@ -86,14 +107,102 @@ def _semantic_similarity(claim: str, chunk_text: str) -> float:
 
 # ── Mechanism 2: NLI ──────────────────────────────────────────────────────────
 
-def _nli_scores(claim: str, chunk_text: str) -> np.ndarray:
-    """Return softmax probabilities [contradiction, entailment, neutral]."""
-    model = _get_nli_model()
-    raw = model.predict([(chunk_text, claim)])  # premise, hypothesis
-    # CrossEncoder returns raw logits; apply softmax
-    logits = np.array(raw[0])
+# Granularity of the premise handed to the NLI model.
+#
+#   "chunk"     the whole retrieved chunk (~512 chars, 4-5 sentences)
+#   "sentence"  each sentence separately, aggregated by per-label max
+#
+# The NLI model is fine-tuned on SNLI/MultiNLI — SINGLE SENTENCE pairs — so a
+# multi-sentence premise dilutes the one sentence that bears on the claim.
+# Operating at sentence granularity and aggregating is the central finding of
+# SummaC (Laban et al., 2022).
+#
+# SETTLED 2026-10-14. This default was "chunk" while run_verification.py
+# overrode it to "sentence", so the library default was NOT the configuration
+# the evaluation validated. Sentence wins on both test sets:
+#
+#   perturbation benchmark, held-out test split (n=150)
+#       sentence  BA 0.919   AUC 0.975
+#       chunk     BA 0.873   AUC 0.930
+#
+#   the 30 human-labelled answers
+#                        good      false   fabrication   SUPPORTED
+#                        delivered ESCALATE withheld      claims
+#       sentence         6/13      0/13     3/4           211/429
+#       chunk            4/13      1/13     2/4           167/429
+#
+# The two sets disagreed before the decomposer was fixed, and chunk looked
+# better on real claims. That was an artefact: claims were long enough that
+# the length effect swamped the comparison. The comparison only became valid
+# once claims were short, which is itself worth reporting — granularity
+# choice and decomposition granularity interact, and measuring one while the
+# other is broken gives the wrong answer.
+#
+# The deciding case is q42, an answer the author marked as containing
+# fabrication: chunk granularity returns ANSWER on it, at full confidence.
+NLI_GRANULARITY = "sentence"
+
+_SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+MIN_NLI_SENT_CHARS = 15   # low enough to keep short real sentences
+                          # ("Power must be disconnected." is 27 chars);
+                          # high enough to drop "NOTE:", "See Figure 3." etc.
+
+
+def _split_for_nli(text: str) -> list[str]:
+    """
+    Split a chunk into NLI-sized premises.
+
+    Falls back to the whole chunk when there is no usable sentence boundary —
+    PDF-extracted text often runs together, and an empty premise list would
+    silently drop the evidence entirely.
+    """
+    text = " ".join(text.split())
+    parts = [s.strip() for s in _SENT_SPLIT_RE.split(text)]
+    parts = [s for s in parts if len(s) >= MIN_NLI_SENT_CHARS]
+    return parts or [text]
+
+
+def _softmax(logits: np.ndarray) -> np.ndarray:
     exp = np.exp(logits - logits.max())
     return exp / exp.sum()
+
+
+def _nli_scores(claim: str, chunk_text: str,
+                granularity: str | None = None) -> np.ndarray:
+    """
+    Return [contradiction, entailment, neutral] for a claim against evidence.
+
+    In "chunk" mode these are softmax probabilities and sum to 1.
+
+    In "sentence" mode the chunk is split and the claim scored against each
+    sentence; the returned vector is the full softmax distribution of the
+    sentence with the HIGHEST ENTAILMENT. This follows SummaC-ZS, and it
+    keeps the three values a genuine probability distribution.
+
+    An earlier version took a per-label maximum instead, so that a
+    contradiction in any sentence could trigger ESCALATE. Measured on the
+    302-row perturbation set that proved far too permissive: with ~5
+    sentences per chunk there are five chances at a spurious contradiction,
+    CONTRADICTION verdicts rose from 80 to 146, and retention of true claims
+    fell from 87.3% to 73.4%.
+
+    KNOWN LIMITATION, to state in Chapter 6: a contradiction carried by a
+    sentence other than the best-entailing one is not surfaced.
+    """
+    model = _get_nli_model()
+    mode = granularity or NLI_GRANULARITY
+
+    if mode != "sentence":
+        raw = model.predict([(chunk_text, claim)])  # premise, hypothesis
+        # CrossEncoder returns raw logits; apply softmax
+        return _softmax(np.array(raw[0]))
+
+    sentences = _split_for_nli(chunk_text)
+    # One batched call — looping would make this ~5x slower for no reason.
+    raw = np.atleast_2d(np.array(model.predict([(s, claim) for s in sentences])))
+    probs = np.vstack([_softmax(row) for row in raw])
+    best = int(np.argmax(probs[:, _NLI_ENTAILMENT]))
+    return probs[best]
 
 
 # ── Mechanism 3: Entity & Number Matching ─────────────────────────────────────
@@ -155,9 +264,13 @@ def _negation_check(claim: str, chunk_text: str) -> MechanismResult:
     claim_has_negation = bool(_NEGATION_RE.search(claim))
     chunk_has_negation = bool(_NEGATION_RE.search(chunk_text))
 
-    if not claim_has_negation:
+    # Four cases. The guard below must test BOTH flags: gating only on
+    # `claim_has_negation` made the fourth case unreachable, which is the
+    # case this mechanism exists for — evidence carrying a conditional
+    # exception ("unless", "except") that the claim silently drops.
+    if not claim_has_negation and not chunk_has_negation:
         return MechanismResult("negation", fired=False, score=1.0,
-                               detail="no negation in claim")
+                               detail="no negation in claim or evidence")
 
     if claim_has_negation and chunk_has_negation:
         return MechanismResult("negation", fired=True, score=1.0,
@@ -168,7 +281,8 @@ def _negation_check(claim: str, chunk_text: str) -> MechanismResult:
                                detail="claim has negation but evidence does not — possible contradiction")
 
     return MechanismResult("negation", fired=True, score=0.8,
-                           detail="evidence has negation but claim does not")
+                           detail="evidence has negation/exception but claim does not — "
+                                  "possible omitted condition")
 
 
 # ── Core cascade ──────────────────────────────────────────────────────────────
@@ -185,6 +299,26 @@ def verify_claim(claim: str, chunks: list) -> VerificationResult:
     best_nli_probs = None
     best_mechanisms = []
 
+    # Contradiction is tracked ACROSS ALL CHUNKS, independently of which chunk
+    # wins on score.
+    #
+    # A contradicting chunk is assigned combined = 0.0, so it always loses the
+    # max to any non-contradicting chunk, and best_nli_probs then belongs to a
+    # chunk that by construction did NOT contradict. With k=5 that made
+    # ESCALATE — the safety-critical decision — effectively unreachable:
+    # measured 0 of 101 claims above CONTRADICTION_THRESH at answer level,
+    # against 43 of 302 at claim level where k=1. The unit tests missed it
+    # because they pass a single chunk.
+    #
+    # A contradiction in the retrieved evidence must surface, even if another
+    # chunk happens to score higher. WHICH chunk is allowed to raise one is
+    # the question Step 3 settled: only the chunk the retriever ranked most
+    # similar to the claim. See the verdict block below for the measurements.
+    contradiction_sim = -1.0
+    contradiction_p_at_top_sim = 0.0
+    contradicting_source = None
+    contradicting_probs = None
+
     for chunk in chunks:
         chunk_text = chunk.page_content
 
@@ -197,6 +331,12 @@ def verify_claim(claim: str, chunks: list) -> VerificationResult:
         nli_probs = _nli_scores(claim, chunk_text)
         contradiction_p = nli_probs[_NLI_CONTRADICTION]
         entailment_p    = nli_probs[_NLI_ENTAILMENT]
+
+        if sim > contradiction_sim:
+            contradiction_sim = sim
+            contradiction_p_at_top_sim = contradiction_p
+            contradicting_source = chunk
+            contradicting_probs = nli_probs
 
         # Immediate contradiction — flag and keep as candidate
         if contradiction_p > CONTRADICTION_THRESH:
@@ -248,28 +388,75 @@ def verify_claim(claim: str, chunks: list) -> VerificationResult:
                                         detail="all chunks below similarity gate")],
         )
 
-    # ── Determine verdict ─────────────────────────────────────────────────
-    contradiction_p = best_nli_probs[_NLI_CONTRADICTION]
-    if contradiction_p > CONTRADICTION_THRESH:
-        verdict = "CONTRADICTION"
-    elif best_score >= SUPPORTED_SCORE:
+    # ── Determine verdict: SUPPORT FIRST, TOP-SIMILARITY CONTRADICTION ────
+    #
+    # Two decisions, each measured rather than reasoned.
+    #
+    # (1) Support is checked BEFORE contradiction. NLI has no "irrelevant"
+    #     label: given a claim and an unrelated passage it must still choose
+    #     entailment / contradiction / neutral, and matching structure with
+    #     different specifics — "remove the two screws M" against "remove the
+    #     four screws N" — reads as CONTRADICTION rather than neutral.
+    #
+    # (2) Only the MOST SIMILAR chunk may raise a contradiction. Taking the
+    #     maximum over all k=5 chunks lets any passage about a different
+    #     procedure veto the claim. Measured over the 30 answers the author
+    #     read and labelled, and over all 429 claims:
+    #
+    #       rule               false ESCALATE   CONTRADICTION
+    #                          on 13 fully-good   claims /429
+    #       winning chunk only        0                 1     unreachable
+    #       top similarity            0                11     <- this
+    #       second-highest            2                11
+    #       max, threshold 0.9        2                20
+    #       max over all chunks       3                40
+    #
+    #     Every rule delivers the same 5 of 13 fully-good answers, withholds
+    #     the same 3 of 4 containing fabrication and delivers the same 1 of 7
+    #     off-target ones. The ESCALATE rule changes NOTHING except how often
+    #     a sound answer is accused of contradicting the manual, so the rule
+    #     that never does that and still fires is the right one.
+    #
+    # KNOWN LIMITATION for Chapter 6: if two documents genuinely disagree and
+    # the more similar one supports the claim, the disagreement is not
+    # surfaced. Rare in a corpus of three largely non-overlapping manuals;
+    # real nonetheless.
+    contradiction_p = contradiction_p_at_top_sim
+    if best_score >= SUPPORTED_SCORE:
         verdict = "SUPPORTED"
+    elif contradiction_p > CONTRADICTION_THRESH:
+        verdict = "CONTRADICTION"
     else:
         verdict = "UNSUPPORTED"
 
-    source = (
-        best_chunk_doc.metadata.get("source_file", "unknown")
-        + " p."
-        + str(best_chunk_doc.metadata.get("page", "?"))
-    )
+    def _src(doc):
+        return (doc.metadata.get("source_file", "unknown")
+                + " p." + str(doc.metadata.get("page", "?")))
+
+    # Cite the contradicting chunk when there is one — that is the evidence a
+    # safety engineer needs to see, not the chunk that scored highest.
+    cited = (contradicting_source
+             if verdict == "CONTRADICTION" and contradicting_source is not None
+             else best_chunk_doc)
+    source = _src(cited)
+
+    # Report the probabilities of the chunk the verdict is actually based on.
+    # Reporting the top-scoring chunk's numbers alongside a CONTRADICTION
+    # verdict derived from a different chunk would make the score unable to
+    # explain the decision — which is the opposite of the auditability this
+    # mechanism exists to provide.
+    reported_probs = (contradicting_probs
+                      if verdict == "CONTRADICTION" and contradicting_probs is not None
+                      else best_nli_probs)
 
     return VerificationResult(
         claim=claim,
         verdict=verdict,
         score=round(best_score, 4),
-        best_chunk=best_chunk_doc.page_content,
+        best_chunk=cited.page_content,
         best_chunk_source=source,
         mechanisms=best_mechanisms,
+        nli_probs=[float(x) for x in reported_probs],
     )
 
 

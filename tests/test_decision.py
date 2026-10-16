@@ -15,7 +15,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.trust_layer.scorer import TrustScore
-from src.trust_layer.decision import decide
+from src.trust_layer.decision import decide, WARN_THRESHOLD
 
 
 def _trust(overall_score, has_contradiction=False, num_claims=3,
@@ -54,12 +54,12 @@ def test_mid_score_warns():
 
 
 def test_score_exactly_at_warn_threshold_warns():
-    result = decide(_trust(0.60))
+    result = decide(_trust(WARN_THRESHOLD))
     assert result.decision == "WARN"
 
 
 def test_score_just_below_warn_threshold_refuses():
-    result = decide(_trust(0.59))
+    result = decide(_trust(WARN_THRESHOLD - 0.01))
     assert result.decision == "REFUSE"
 
 
