@@ -1,6 +1,23 @@
+# --- Python ---
 venv/
-data/chroma/
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
+.ipynb_checkpoints/
+
+# --- OS / editor ---
 .DS_Store
+*.swp
+*~
+
+# --- secrets ---
 .env
+*.pem
+
+# --- rebuildable vector indexes (re-embed with src/build_oem_index.py) ---
+data/chroma/
+data/chroma_*/
+
+# --- scratch ---
+*.tmp
